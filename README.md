@@ -67,3 +67,7 @@ node scripts/screenshots.mjs  # re-render docs/*.png with headless Firefox
 ## Português 🇧🇷
 
 Extensão para Firefox que aumenta o volume de **abas específicas** até **600%**, com **equalizador de 10 bandas**, curva de resposta em tempo real, presets, limitador contra distorção e controle de todas as abas com áudio pelo mesmo menu. Interface em português, inglês e espanhol, com tema claro, escuro ou automático. Para instalar, abra `about:debugging#/runtime/this-firefox`, clique em **Carregar extensão temporária…** e selecione o `manifest.json`.
+
+## License
+
+[MIT](LICENSE)
