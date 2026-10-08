@@ -12,7 +12,7 @@ It's a plain MV3 WebExtension with no build step, no dependencies and no framewo
 - `content.js`: the Web Audio graph per frame: media → 10 biquads → gain → limiter → destination.
 - `popup.html/css/js`: the UI. Per-tab settings live in `storage.session` under `tab:<id>` as `{ volume, eq? }`. `eq` is present only when the tab has its own EQ. The global EQ (persistent) lives in `storage.local.eq`, and prefs (theme, lang, view) in `storage.local.prefs`.
 - `_locales/{en,pt,es}/messages.json`: every UI string. To override the browser language, the popup fetches these files directly.
-- `scripts/check.mjs`: syntax check plus i18n key parity. `scripts/test-audio.mjs`: runs content.js on a silent `<audio>` in headless Firefox (WebDriver BiDi) and asserts routing and gain. `scripts/screenshots.mjs`: renders the popup in headless Firefox with a mocked `browser` API → `docs/*.png`.
+- `scripts/check.mjs`: syntax check plus i18n key parity. `scripts/test-audio.mjs`: runs content.js on a silent `<audio>` in headless Firefox (WebDriver BiDi) and asserts routing and gain. `scripts/screenshots.mjs`: renders the popup in headless Firefox with a mocked `browser` API → `docs/*.png`, plus the 1280×800 AMO listing images in `docs/store/`.
 
 ## Flow
 

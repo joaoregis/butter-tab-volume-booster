@@ -65,17 +65,50 @@ window.browser = {
 window.fetch = async (url) => ({ json: async () => LOCALES[url.split('/')[1]] });
 ${shot.list ? "addEventListener('load', () => document.querySelector('#target').click());" : ''}`;
 
+// 1280×800 compositions for the addons.mozilla.org listing, built from the popup shots above.
+const STORE = [
+  { name: 'store-1-volume', title: 'Boost any tab up to 600%', text: 'Turn up just the tab that is too quiet. A built-in limiter keeps big boosts clean, and the toolbar badge shows each tab’s level.', shots: ['volume-light', 'volume-dark'] },
+  { name: 'store-2-equalizer', title: '10-band equalizer, global or per tab', text: 'A saved EQ for every tab, or a tab of its own. 10 presets and a live frequency-response curve.', shots: ['eq-dark', 'eq-light'] },
+  { name: 'store-3-tabs', title: 'Every tab with audio, in one place', text: 'See what is playing, boosted or muted, control any tab from the same popup, or jump straight to it.', shots: ['tabs-dark'] },
+];
+
+const storePage = (s) => `<!doctype html><meta charset="utf-8"><base href="${root.href}"><style>
+html, body { margin: 0; width: 1280px; height: 800px; overflow: hidden; }
+body {
+  box-sizing: border-box; display: grid; grid-template-columns: 400px 1fr; align-items: center; gap: 40px; padding: 0 72px;
+  font-family: "Segoe UI", system-ui, sans-serif; color: #2a2216;
+  background: radial-gradient(900px 600px at 10% -10%, #ffe7a0, transparent 70%), radial-gradient(700px 520px at 105% 110%, #f9cf5e, transparent 65%), #fbf7ee;
+}
+.brand { display: flex; align-items: center; gap: 14px; font-size: 24px; font-weight: 750; }
+.brand img { width: 56px; height: 56px; filter: drop-shadow(0 6px 12px rgb(235 167 12 / 0.4)); }
+h1 { margin: 30px 0 18px; font-size: 48px; font-weight: 800; line-height: 1.08; letter-spacing: -0.03em; }
+p { margin: 0; font-size: 21px; line-height: 1.5; color: #6b604c; }
+.shots { display: flex; justify-content: center; align-items: center; gap: 28px; }
+.shots img { width: 330px; border-radius: 18px; box-shadow: 0 40px 70px -24px rgb(90 60 0 / 0.4), 0 0 0 1px rgb(90 60 0 / 0.08); }
+.shots img:nth-child(2) { translate: 0 36px; }
+.shots img:only-child { width: 400px; }
+</style>
+<div><div class="brand"><img src="icons/icon.svg" alt="">Butter</div><h1>${s.title}</h1><p>${s.text}</p></div>
+<div class="shots">${s.shots.map((n) => `<img src="docs/${n}.png" alt="">`).join('')}</div>`;
+
 const work = mkdtempSync(join(tmpdir(), 'butter-shots-'));
-mkdirSync(new URL('docs/', root), { recursive: true });
+mkdirSync(new URL('docs/store/', root), { recursive: true });
+const screenshot = (page, out, width, height) =>
+  execFileSync(firefox, ['--headless', '--no-remote', '--profile', work, `--window-size=${width},${height}`, '--screenshot', fileURLToPath(new URL(out, root)), pathToFileURL(page).href], { stdio: 'ignore' });
 
 try {
   for (const shot of SHOTS) {
     const page = join(work, `${shot.name}.html`);
     const head = `<head>\n<base href="${root.href}">\n<style>html{zoom:2}*,*::before,*::after{transition:none!important;animation:none!important}</style>\n<script>${mock(shot)}</script>`;
     writeFileSync(page, read('popup.html').replace('<head>', head));
-    const out = fileURLToPath(new URL(`docs/${shot.name}.png`, root));
-    execFileSync(firefox, ['--headless', '--no-remote', '--profile', work, `--window-size=${360 * 2},${HEIGHT * 2}`, '--screenshot', out, pathToFileURL(page).href], { stdio: 'ignore' });
+    screenshot(page, `docs/${shot.name}.png`, 360 * 2, HEIGHT * 2);
     console.log(`docs/${shot.name}.png`);
+  }
+  for (const s of STORE) {
+    const page = join(work, `${s.name}.html`);
+    writeFileSync(page, storePage(s));
+    screenshot(page, `docs/store/${s.name}.png`, 1280, 800);
+    console.log(`docs/store/${s.name}.png`);
   }
 } finally {
   rmSync(work, { recursive: true, force: true });
