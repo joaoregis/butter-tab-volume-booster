@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="gold" x1="20" y1="10" x2="108" y2="124" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFCD55"/>
+      <stop offset="1" stop-color="#EE8708"/>
+    </linearGradient>
+    <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFAEA"/>
+      <stop offset="1" stop-color="#FFE59A"/>
+    </linearGradient>
+    <clipPath id="squircle"><rect x="4" y="4" width="120" height="120" rx="34"/></clipPath>
+    <path id="melt" d="M0 0H128V26H115Q110 26 110 31V40A6 6 0 0 1 98 40V31Q98 26 93 26H78Q73 26 73 31V53A5 5 0 0 1 63 53V31Q63 26 58 26H55Q50 26 50 31V34A4 4 0 0 1 42 34V31Q42 26 37 26H35Q30 26 30 31V46A6 6 0 0 1 18 46V31Q18 26 13 26H0Z"/>
+  </defs>
+  <rect x="4" y="4" width="120" height="120" rx="34" fill="url(#gold)"/>
+  <g clip-path="url(#squircle)">
+    <use href="#melt" fill="#B85F00" opacity="0.22" transform="translate(0 3)"/>
+    <use href="#melt" fill="url(#cream)"/>
+  </g>
+  <path d="M28 64h13l21-17v54L41 84H28a4 4 0 0 1-4-4V68a4 4 0 0 1 4-4z" fill="#4A2F05" stroke="#4A2F05" stroke-width="5" stroke-linejoin="round"/>
+  <g fill="none" stroke="#4A2F05" stroke-width="8.5" stroke-linecap="round">
+    <path d="M75 62a17 17 0 0 1 0 24"/>
+    <path d="M87 50a33 33 0 0 1 0 48"/>
+  </g>
+</svg>

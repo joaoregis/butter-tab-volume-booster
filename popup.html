@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Butter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true">
+    <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
+    <symbol id="i-light" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-dark" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z"/></symbol>
+    <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9.5 9.5 0 0 1 0 13"/></symbol>
+    <symbol id="i-muted" viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="m16 9 6 6m0-6-6 6"/></symbol>
+    <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-go" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/></symbol>
+    <symbol id="i-warn" viewBox="0 0 24 24"><path d="M10.3 4 2.6 18a2 2 0 0 0 1.7 3h15.4a2 2 0 0 0 1.7-3L13.7 4a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4m0 3.5h.01"/></symbol>
+  </svg>
+
+  <header class="top">
+    <img class="logo" src="icons/icon.svg" alt="">
+    <div>
+      <h1>Butter</h1>
+      <p class="tagline" data-i18n="tagline"></p>
+    </div>
+  </header>
+
+  <div class="target-wrap">
+    <section class="target card">
+      <button id="target" class="target-btn" type="button" aria-expanded="false" aria-controls="tab-list" data-i18n-label="tabsWithAudio">
+        <img id="tab-icon" class="favicon" alt="">
+        <span class="target-text">
+          <span id="tab-host" class="eyebrow"></span>
+          <strong id="tab-title"></strong>
+        </span>
+        <svg class="ic chev"><use href="#i-chevron"/></svg>
+      </button>
+      <button id="mute" class="icon-btn" type="button" aria-pressed="false"><svg class="ic"><use href="#i-speaker"/></svg></button>
+      <button id="reset" class="icon-btn" type="button" data-i18n-label="reset"><svg class="ic"><use href="#i-reset"/></svg></button>
+    </section>
+    <ul id="tab-list" class="tab-list card" hidden></ul>
+  </div>
+
+  <p id="unsupported" class="notice" hidden><svg class="ic"><use href="#i-warn"/></svg><span data-i18n="unsupported"></span></p>
+  <p id="no-access" class="notice" hidden>
+    <svg class="ic"><use href="#i-warn"/></svg>
+    <span><span data-i18n="needsAccess"></span> <button id="grant" class="link" type="button" data-i18n="grantAccess"></button></span>
+  </p>
+
+  <fieldset id="controls" class="controls">
+    <div class="segmented" role="tablist">
+      <button id="tab-volume" role="tab" type="button" aria-controls="panel-volume">
+        <span data-i18n="volume"></span><span id="seg-volume" class="seg-pill"></span>
+      </button>
+      <button id="tab-eq" role="tab" type="button" aria-controls="panel-eq">
+        <span data-i18n="equalizer"></span><span id="seg-eq" class="seg-dot"></span>
+      </button>
+    </div>
+
+    <section id="panel-volume" class="panel card" role="tabpanel" aria-labelledby="tab-volume">
+      <div class="gauge">
+        <svg viewBox="0 0 200 152" aria-hidden="true">
+          <path class="ticks" pathLength="100" d="M20.33 146A92 92 0 1 1 179.67 146"/>
+          <path class="track" d="M32.45 139A78 78 0 1 1 167.55 139"/>
+          <path id="arc" class="arc" pathLength="100" d="M32.45 139A78 78 0 1 1 167.55 139"/>
+        </svg>
+        <div class="readout">
+          <div class="big"><span id="vol-num">100</span><small>%</small></div>
+          <div id="vol-sub" class="sub"></div>
+        </div>
+      </div>
+      <input id="volume" class="range" type="range" min="0" max="600" step="5" data-i18n-label="volume">
+      <div id="chips" class="chips">
+        <button class="chip" type="button" data-v="50">50%</button>
+        <button class="chip" type="button" data-v="100">100%</button>
+        <button class="chip" type="button" data-v="200">200%</button>
+        <button class="chip" type="button" data-v="300">300%</button>
+        <button class="chip" type="button" data-v="400">400%</button>
+        <button class="chip" type="button" data-v="600">600%</button>
+      </div>
+      <p id="warn" class="warn" hidden><svg class="ic"><use href="#i-warn"/></svg><span data-i18n="loudWarning"></span></p>
+    </section>
+
+    <section id="panel-eq" class="panel card" role="tabpanel" aria-labelledby="tab-eq" hidden>
+      <div class="eq-head">
+        <label class="switch">
+          <input id="eq-on" class="sr" type="checkbox">
+          <span class="knob"></span>
+          <span data-i18n="eqEnable"></span>
+        </label>
+        <label class="pill">
+          <select id="preset" data-i18n-label="preset"></select>
+          <svg class="ic chev-sm"><use href="#i-chevron"/></svg>
+        </label>
+      </div>
+      <div class="eq-graph">
+        <div class="db-scale" aria-hidden="true"><span>+12</span><span>0</span><span>−12</span></div>
+        <div class="bands-area">
+          <svg class="curve" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+            <path class="grid" d="M0 0H100M0 25H100M0 50H100M0 75H100M0 100H100"/>
+            <path id="curve-fill" class="curve-fill"/>
+            <path id="curve-line" class="curve-line"/>
+          </svg>
+          <div id="bands" class="bands"></div>
+        </div>
+      </div>
+      <p class="hint" data-i18n="eqHint"></p>
+    </section>
+  </fieldset>
+
+  <footer class="foot">
+    <label class="pill">
+      <svg class="ic"><use href="#i-globe"/></svg>
+      <select id="lang" data-i18n-label="language">
+        <option value="auto" data-i18n="langAuto"></option>
+        <option value="pt">Português</option>
+        <option value="en">English</option>
+        <option value="es">Español</option>
+      </select>
+      <svg class="ic chev-sm"><use href="#i-chevron"/></svg>
+    </label>
+    <div id="themes" class="theme-switch" role="group" data-i18n-label="theme">
+      <button type="button" data-mode="auto" data-i18n-label="theme_auto"><svg class="ic"><use href="#i-auto"/></svg></button>
+      <button type="button" data-mode="light" data-i18n-label="theme_light"><svg class="ic"><use href="#i-light"/></svg></button>
+      <button type="button" data-mode="dark" data-i18n-label="theme_dark"><svg class="ic"><use href="#i-dark"/></svg></button>
+    </div>
+  </footer>
+
+  <template id="band-tpl">
+    <label class="band">
+      <output></output>
+      <input type="range" min="-12" max="12" step="1">
+      <span class="freq"></span>
+    </label>
+  </template>
+
+  <template id="row-tpl">
+    <li class="row">
+      <button class="row-main" type="button">
+        <img class="favicon" alt="">
+        <span class="row-title"></span>
+        <span class="playing" hidden><i></i><i></i><i></i></span>
+        <svg class="ic row-muted" hidden><use href="#i-muted"/></svg>
+        <span class="badge" hidden></span>
+      </button>
+      <button class="icon-btn small row-go" type="button"><svg class="ic"><use href="#i-go"/></svg></button>
+    </li>
+  </template>
+
+  <script src="common.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+.repowise/
+web-ext-artifacts/
+node_modules/
+*.xpi
+*.zip
