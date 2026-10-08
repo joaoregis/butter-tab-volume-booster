@@ -14,12 +14,18 @@ const PORT = 9339;
 // Page side: fake `browser`, spy on Web Audio, then load the real scripts.
 const page = `<!doctype html><base href="${root.href}">
 <script>
-window.browser = { runtime: { onMessage: { addListener: (fn) => (window.deliver = fn) }, sendMessage: async () => undefined } };
-const spy = { contexts: [], sources: 0, gains: [] };
+window.browser = {
+  runtime: { onMessage: { addListener: (fn) => (window.deliver = fn) }, sendMessage: async () => undefined },
+  storage: { local: { get: async () => ({}) }, onChanged: { addListener: (fn) => (window.setGlobalEq = (eq) => fn({ eq: { newValue: eq } }, 'local')) } },
+};
+const spy = { contexts: [], sources: 0, gains: [], filters: [] };
 const proto = AudioContext.prototype;
-const { createMediaElementSource, createGain } = proto;
+const { createMediaElementSource, createGain, createBiquadFilter } = proto;
 proto.createMediaElementSource = function (el) { spy.sources++; return createMediaElementSource.call(this, el); };
 proto.createGain = function () { const g = createGain.call(this); spy.gains.push(g); return g; };
+proto.createBiquadFilter = function () { const f = createBiquadFilter.call(this); spy.filters.push(f); return f; };
+// boost gain and the 32 Hz band, as the graph currently has them
+const levels = () => ({ boost: spy.gains[1]?.gain.value, low: spy.filters[0]?.gain.value });
 window.AudioContext = class extends AudioContext { constructor() { super(); spy.contexts.push(this); } };
 
 function toneUrl() { // 1 s, 440 Hz, 16-bit mono WAV
@@ -41,9 +47,24 @@ window.runTest = async () => {
   await audio.play();
   await wait(200);
   const untouched = spy.contexts.length === 0 && spy.sources === 0;
-  deliver({ type: 'apply', state: { volume: 300, eq: true, preset: 'rock', bands: PRESETS.rock } });
+
+  setGlobalEq({ enabled: true, preset: 'rock', bands: PRESETS.rock }); // global EQ alone routes the media
   await wait(600);
-  return JSON.stringify({ untouched, contexts: spy.contexts.length, ctxState: spy.contexts[0]?.state, sources: spy.sources, boost: spy.gains[1]?.gain.value });
+  const globalOnly = levels();
+
+  deliver({ type: 'apply', settings: { volume: 300, eq: { enabled: true, preset: 'bass', bands: PRESETS.bass } } });
+  await wait(600);
+  const tabOwn = levels(); // the tab's own EQ wins over the global one
+
+  setGlobalEq({ enabled: true, preset: 'bassCut', bands: PRESETS.bassCut });
+  await wait(600);
+  const globalIgnored = levels(); // ...and global edits don't touch it
+
+  deliver({ type: 'apply', settings: { volume: 300 } });
+  await wait(600);
+  const backToGlobal = levels();
+
+  return JSON.stringify({ untouched, contexts: spy.contexts.length, ctxState: spy.contexts[0]?.state, sources: spy.sources, globalOnly, tabOwn, globalIgnored, backToGlobal });
 };
 </script>
 <script src="common.js"></script>
@@ -88,7 +109,13 @@ try {
   assert.equal(r.contexts, 1, 'one AudioContext per frame');
   assert.equal(r.ctxState, 'running');
   assert.equal(r.sources, 1, 'playing element routed once');
-  assert.ok(Math.abs(r.boost - 3) < 0.05, `boost gain ≈ 3, got ${r.boost}`);
+  const near = (actual, expected, what) => assert.ok(Math.abs(actual - expected) < 0.05, `${what}: expected ≈ ${expected}, got ${actual}`);
+  near(r.globalOnly.boost, 1, 'global EQ only: boost');
+  near(r.globalOnly.low, 5, 'global EQ only: 32 Hz (rock)');
+  near(r.tabOwn.boost, 3, 'tab override: boost');
+  near(r.tabOwn.low, 7, 'tab override: 32 Hz (bass)');
+  near(r.globalIgnored.low, 7, 'global edit while tab has its own EQ');
+  near(r.backToGlobal.low, -7, 'tab back to global: 32 Hz (bassCut)');
   console.log('OK:', r);
   ws.close();
 } finally {

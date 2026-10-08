@@ -15,10 +15,12 @@ const PRESETS = {
   classical: [4, 3, 2, 1, -1, -1, 0, 2, 3, 4],
 };
 
-// Per-tab settings, kept in storage.session under stateKey(tabId).
-const defaultState = () => ({ volume: 100, eq: false, preset: 'flat', bands: [...PRESETS.flat] });
+// Per tab, storage.session[stateKey(tabId)] = { volume, eq? }: `eq` only when the tab has its own EQ.
+// Otherwise the tab follows the global EQ, saved across restarts in storage.local.eq.
 const stateKey = (tabId) => `tab:${tabId}`;
-const isActive = (s) => !!s && (s.volume !== 100 || (s.eq && s.bands.some(Boolean)));
+const defaultTab = () => ({ volume: 100 });
+const defaultEq = () => ({ enabled: false, preset: 'flat', bands: [...PRESETS.flat] });
+const eqActive = (eq) => !!eq?.enabled && eq.bands.some(Boolean);
 
 // One filter bank definition for both the real audio graph and the popup's response curve.
 function createEqFilters(ctx) {
@@ -32,6 +34,6 @@ function createEqFilters(ctx) {
 }
 
 function updateBadge(tabId, s) {
-  const text = !isActive(s) ? '' : s.volume !== 100 ? String(s.volume) : 'EQ';
-  return browser.action.setBadgeText({ tabId, text });
+  const volume = s?.volume ?? 100;
+  return browser.action.setBadgeText({ tabId, text: volume === 100 ? '' : String(volume) });
 }

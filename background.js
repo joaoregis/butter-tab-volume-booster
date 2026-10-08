@@ -1,7 +1,7 @@
 browser.action.setBadgeBackgroundColor({ color: '#F2B233' });
 browser.action.setBadgeTextColor({ color: '#2A1F00' });
 
-// Every frame's content script asks for its tab's settings when it loads.
+// Every frame's content script asks for its tab's settings when it loads (it reads the global EQ itself).
 browser.runtime.onMessage.addListener((msg, sender) => {
   if (msg?.type !== 'get' || !sender.tab) return;
   const key = stateKey(sender.tab.id);

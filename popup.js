@@ -5,10 +5,13 @@ let prefs = { theme: 'auto', lang: 'auto', view: 'volume' };
 let dict = null; // messages for an explicitly picked language; null follows the browser
 let activeTabId;
 let tab; // the tab being controlled (the active one unless picked from the list)
-let state;
+let settings; // that tab's { volume, eq? }: `eq` only when it has its own EQ
+let globalEq = defaultEq(); // saved across restarts, used by every tab without its own EQ
 
 const t = (key) => (dict ? dict[key]?.message : browser.i18n.getMessage(key)) || key;
 const savePrefs = () => browser.storage.local.set({ prefs });
+const currentEq = () => settings.eq ?? globalEq;
+const customized = (s) => !!s && (s.volume !== 100 || !!s.eq);
 
 function setLabel(el, text) {
   el.title = text;
@@ -44,7 +47,8 @@ const bandInputs = FREQS.map((freq, i) => {
   const input = band.querySelector('input');
   band.querySelector('.freq').textContent = freq >= 1000 ? `${freq / 1000}k` : freq;
   input.setAttribute('aria-label', `${freq} Hz`);
-  input.addEventListener('input', () => setBand(i, +input.value));
+  input.addEventListener('input', () => setBand(i, +input.value, true));
+  input.addEventListener('change', () => saveEq());
   input.addEventListener('dblclick', () => setBand(i, 0));
   $('#bands').append(band);
   return input;
@@ -63,12 +67,12 @@ const CURVE_N = 120;
 const curveFreqs = Float32Array.from({ length: CURVE_N }, (_, j) => 32 * 2 ** ((j / (CURVE_N - 1)) * 10 - 0.5));
 const curveFilters = createEqFilters(new OfflineAudioContext(1, 1, 48000));
 
-function drawCurve() {
+function drawCurve(bands) {
   const db = new Float32Array(CURVE_N);
   const mag = new Float32Array(CURVE_N);
   const phase = new Float32Array(CURVE_N);
   curveFilters.forEach((filter, i) => {
-    filter.gain.value = state.bands[i];
+    filter.gain.value = bands[i];
     filter.getFrequencyResponse(curveFreqs, mag, phase);
     mag.forEach((m, j) => (db[j] += 20 * Math.log10(m)));
   });
@@ -81,8 +85,9 @@ function drawCurve() {
 // ---------- rendering ----------
 
 function render() {
-  if (!state) return;
-  const { volume, eq, bands, preset } = state;
+  if (!settings) return;
+  const { volume } = settings;
+  const eq = currentEq();
   const muted = !!tab.mutedInfo?.muted;
 
   $('#tab-title').textContent = tab.title || tab.url;
@@ -105,12 +110,13 @@ function render() {
   $('#warn').hidden = volume <= 300 || muted;
   $('#seg-volume').textContent = `${volume}%`;
 
-  $('#eq-on').checked = eq;
-  $('#panel-eq').classList.toggle('off', !eq);
-  $('#seg-eq').hidden = !eq;
-  $('#preset').value = preset;
+  $('#eq-on').checked = eq.enabled;
+  $('#panel-eq').classList.toggle('off', !eq.enabled);
+  $('#seg-eq').hidden = !eq.enabled;
+  $('#preset').value = eq.preset;
+  for (const b of $('#scope').children) b.setAttribute('aria-pressed', (b.dataset.scope === 'tab') === !!settings.eq);
   bandInputs.forEach((input, i) => {
-    const gain = bands[i];
+    const gain = eq.bands[i];
     const p = ((gain + 12) / 24) * 100;
     input.value = gain;
     input.style.setProperty('--lo', `${Math.min(p, 50)}%`);
@@ -119,17 +125,18 @@ function render() {
     out.textContent = gain > 0 ? `+${gain}` : String(gain).replace('-', '−');
     out.classList.toggle('on', gain !== 0);
   });
-  drawCurve();
+  drawCurve(eq.bands);
 }
 
 async function renderTabList() {
   const [tabs, stored] = await Promise.all([browser.tabs.query({}), browser.storage.session.get()]);
+  const settingsOf = (x) => (x.id === tab.id ? settings : stored[stateKey(x.id)]);
   const relevant = tabs.filter(
-    (x) => x.id === tab.id || x.id === activeTabId || x.audible || x.mutedInfo?.muted || isActive(stored[stateKey(x.id)]),
+    (x) => x.id === tab.id || x.id === activeTabId || x.audible || x.mutedInfo?.muted || customized(settingsOf(x)),
   );
   $('#target').disabled = relevant.length < 2;
   if (relevant.length < 2) toggleList(false);
-  $('#tab-list').replaceChildren(...relevant.map((x) => tabRow(x, x.id === tab.id ? state : stored[stateKey(x.id)])));
+  $('#tab-list').replaceChildren(...relevant.map((x) => tabRow(x, settingsOf(x))));
 }
 
 function tabRow(x, s) {
@@ -140,8 +147,8 @@ function tabRow(x, s) {
   row.querySelector('.playing').hidden = !x.audible;
   row.querySelector('.row-muted').toggleAttribute('hidden', !x.mutedInfo?.muted); // SVG has no .hidden
   const badge = row.querySelector('.badge');
-  badge.hidden = !isActive(s);
-  if (isActive(s)) badge.textContent = s.volume !== 100 ? `${s.volume}%` : 'EQ';
+  badge.hidden = !customized(s);
+  if (customized(s)) badge.textContent = [s.volume !== 100 && `${s.volume}%`, s.eq && 'EQ'].filter(Boolean).join(' · ');
   row.querySelector('.row-main').addEventListener('click', () => {
     toggleList(false);
     selectTab(x);
@@ -179,29 +186,49 @@ async function applyLang() {
   document.documentElement.lang = prefs.lang === 'auto' ? browser.i18n.getUILanguage() : prefs.lang;
   for (const el of document.querySelectorAll('[data-i18n]')) el.textContent = t(el.dataset.i18n);
   for (const el of document.querySelectorAll('[data-i18n-label]')) setLabel(el, t(el.dataset.i18nLabel));
+  bandInputs.forEach((input, i) => (input.title = `${FREQS[i]} Hz · ${t('eqHint')}`));
   $('#lang').value = prefs.lang;
 }
 
 // ---------- state ----------
 
-function commit() {
-  render();
-  browser.storage.session.set({ [stateKey(tab.id)]: state });
-  browser.tabs.sendMessage(tab.id, { type: 'apply', state }).catch(() => {});
-  updateBadge(tab.id, state);
+function saveTab() {
+  browser.storage.session.set({ [stateKey(tab.id)]: settings });
+  browser.tabs.sendMessage(tab.id, { type: 'apply', settings }).catch(() => {});
+  updateBadge(tab.id, settings);
   if (!$('#tab-list').hidden) renderTabList();
 }
 
 function setVolume(volume) {
-  state.volume = Math.max(0, Math.min(MAX, Math.round(volume)));
-  commit();
+  settings.volume = Math.max(0, Math.min(MAX, Math.round(volume)));
+  render();
+  saveTab();
 }
 
-function setBand(i, gain) {
-  state.bands[i] = gain;
-  state.preset = Object.keys(PRESETS).find((id) => PRESETS[id].every((g, j) => g === state.bands[j])) ?? 'custom';
-  state.eq = true;
-  commit();
+// The global EQ is watched by every frame of every tab, so drags save it throttled;
+// releasing a slider ('change') saves at once, so closing the popup never loses the last value.
+let eqTimer = null;
+function saveEq(throttle = false) {
+  if (settings.eq) return saveTab();
+  if (throttle) {
+    eqTimer ??= setTimeout(saveEq, 80);
+    return;
+  }
+  clearTimeout(eqTimer);
+  eqTimer = null;
+  browser.storage.local.set({ eq: globalEq });
+}
+
+function updateEq(changes, throttle) {
+  Object.assign(currentEq(), changes);
+  render();
+  saveEq(throttle);
+}
+
+function setBand(i, gain, throttle) {
+  const bands = currentEq().bands.with(i, gain);
+  const preset = Object.keys(PRESETS).find((id) => PRESETS[id].every((g, j) => g === bands[j])) ?? 'custom';
+  updateEq({ bands, preset, enabled: true }, throttle);
 }
 
 async function ensureContentScript(tabId) {
@@ -220,11 +247,12 @@ async function ensureContentScript(tabId) {
 async function selectTab(next) {
   tab = next;
   const key = stateKey(tab.id);
-  state = (await browser.storage.session.get(key))[key] ?? defaultState();
+  settings = (await browser.storage.session.get(key))[key] ?? defaultTab();
   const ok = await ensureContentScript(tab.id);
   // MV3 lets users revoke site access in about:addons; offer to re-grant instead of "unsupported".
   const access = ok || (await browser.permissions.contains({ origins: ['<all_urls>'] }));
-  $('#controls').disabled = !ok;
+  $('#panel-volume').disabled = !ok; // the global EQ stays editable
+  $('#scope-tab').disabled = !ok;
   $('#unsupported').hidden = ok || !access;
   $('#no-access').hidden = access;
   render();
@@ -240,8 +268,9 @@ $('#grant').addEventListener('click', async () => {
 });
 $('#mute').addEventListener('click', () => browser.tabs.update(tab.id, { muted: !tab.mutedInfo?.muted }));
 $('#reset').addEventListener('click', () => {
-  state = defaultState();
-  commit();
+  settings = defaultTab();
+  render();
+  saveTab();
 });
 
 $('#tab-volume').addEventListener('click', () => (showView('volume'), savePrefs()));
@@ -252,22 +281,25 @@ $('#chips').addEventListener('click', (e) => e.target.dataset.v && setVolume(+e.
 $('.gauge').addEventListener(
   'wheel',
   (e) => {
-    if ($('#controls').disabled) return;
+    if ($('#panel-volume').disabled) return;
     e.preventDefault();
-    setVolume(state.volume + (e.deltaY < 0 ? 10 : -10));
+    setVolume(settings.volume + (e.deltaY < 0 ? 10 : -10));
   },
   { passive: false },
 );
 
-$('#eq-on').addEventListener('change', (e) => {
-  state.eq = e.target.checked;
-  commit();
-});
-$('#preset').addEventListener('change', (e) => {
-  state.preset = e.target.value;
-  state.bands = [...PRESETS[state.preset]];
-  state.eq = true;
-  commit();
+$('#eq-on').addEventListener('change', (e) => updateEq({ enabled: e.target.checked }));
+$('#preset').addEventListener('change', (e) =>
+  updateEq({ preset: e.target.value, bands: [...PRESETS[e.target.value]], enabled: true }),
+);
+// "This tab" starts from a copy of the global EQ; back to "All tabs" drops the tab's own EQ.
+$('#scope').addEventListener('click', (e) => {
+  const scope = e.target.closest('[data-scope]')?.dataset.scope;
+  if (!scope || (scope === 'tab') === !!settings.eq) return;
+  if (scope === 'tab') settings.eq = structuredClone(globalEq);
+  else delete settings.eq;
+  render();
+  saveTab();
 });
 
 $('#lang').addEventListener('change', async (e) => {
@@ -298,7 +330,9 @@ browser.tabs.onUpdated.addListener(
 );
 
 (async () => {
-  Object.assign(prefs, (await browser.storage.local.get('prefs')).prefs);
+  const stored = await browser.storage.local.get(['prefs', 'eq']);
+  Object.assign(prefs, stored.prefs);
+  globalEq = stored.eq ?? globalEq;
   applyTheme();
   showView(prefs.view);
   await applyLang();

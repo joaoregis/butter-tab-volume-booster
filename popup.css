@@ -200,8 +200,7 @@ h1 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -0.01em; line
 .link { padding: 0; border: 0; background: none; font-weight: 700; text-decoration: underline; cursor: pointer; }
 
 /* Controls */
-.controls { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 0; border: 0; transition: opacity 0.2s; }
-.controls:disabled { opacity: 0.45; }
+.controls { display: grid; gap: 10px; }
 
 .segmented {
   position: relative;
@@ -221,7 +220,7 @@ h1 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -0.01em; line
   box-shadow: 0 1px 2px var(--shadow), 0 4px 12px -6px var(--shadow);
   transition: translate 0.28s cubic-bezier(0.3, 0.7, 0.2, 1);
 }
-.segmented:has(#tab-eq[aria-selected="true"])::before { translate: 100% 0; }
+.segmented:has(> button:last-child:is([aria-selected="true"], [aria-pressed="true"]))::before { translate: 100% 0; }
 .segmented button {
   position: relative;
   display: flex;
@@ -237,7 +236,12 @@ h1 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -0.01em; line
   cursor: pointer;
   transition: color 0.2s;
 }
-.segmented button[aria-selected="true"] { color: var(--text); }
+.segmented button:is([aria-selected="true"], [aria-pressed="true"]) { color: var(--text); }
+.segmented button:disabled { opacity: 0.4; cursor: default; }
+.segmented.small { border-radius: 11px; }
+.segmented.small::before { border-radius: 8px; }
+.segmented.small button { gap: 6px; padding: 6px; border-radius: 8px; font-size: 12px; }
+.segmented.small .ic { width: 15px; height: 15px; }
 .seg-pill {
   padding: 1px 7px;
   border-radius: 999px;
@@ -248,7 +252,8 @@ h1 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -0.01em; line
 }
 .seg-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 
-.panel { display: grid; align-content: space-between; gap: 12px; min-height: 318px; padding: 14px; }
+.panel { display: grid; align-content: space-between; gap: 12px; min-width: 0; min-height: 318px; margin: 0; padding: 14px; transition: opacity 0.2s; }
+.panel:disabled { opacity: 0.45; }
 .panel.muted { --gauge: var(--muted); }
 
 /* Volume gauge */
@@ -412,7 +417,6 @@ h1 { margin: 0; font-size: 16px; font-weight: 750; letter-spacing: -0.01em; line
   background: #fff;
   box-shadow: 0 1px 4px var(--shadow);
 }
-.hint { margin: 0; text-align: center; font-size: 11px; color: var(--muted); }
 
 /* Footer */
 .foot { display: flex; align-items: center; justify-content: space-between; }

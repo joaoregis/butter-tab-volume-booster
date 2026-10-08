@@ -3,7 +3,8 @@
   if (window.__butterVolume) return;
   window.__butterVolume = true;
 
-  let state = defaultState();
+  let settings = defaultTab(); // this tab's { volume, eq? }
+  let globalEq = defaultEq();
   let ctx, input, gain;
   let filters = [];
   const routed = new WeakSet();
@@ -47,23 +48,41 @@
     }
   }
 
-  function apply(next) {
-    state = next ?? defaultState();
-    if (!ctx && !isActive(state)) return;
+  // A tab's own EQ wins over the global one.
+  const currentEq = () => settings.eq ?? globalEq;
+  // Media is only touched once the user changed something that affects this tab.
+  const wanted = () => settings.volume !== 100 || eqActive(currentEq());
+
+  function apply() {
+    if (!ctx && !wanted()) return;
     buildGraph();
     const t = ctx.currentTime;
-    gain.gain.setTargetAtTime(state.volume / 100, t, 0.03);
-    filters.forEach((f, i) => f.gain.setTargetAtTime(state.eq ? state.bands[i] : 0, t, 0.03));
+    const eq = currentEq();
+    gain.gain.setTargetAtTime(settings.volume / 100, t, 0.03);
+    filters.forEach((f, i) => f.gain.setTargetAtTime(eq.enabled ? eq.bands[i] : 0, t, 0.03));
     for (const el of document.querySelectorAll('audio, video')) if (!el.paused) route(el);
   }
 
-  // Media is only touched once the user changed something for this tab.
-  document.addEventListener('play', (e) => isActive(state) && route(e.target), true);
+  document.addEventListener('play', (e) => wanted() && route(e.target), true);
 
   browser.runtime.onMessage.addListener((msg) => {
-    if (msg?.type === 'apply') apply(msg.state);
+    if (msg?.type === 'apply') {
+      settings = msg.settings;
+      apply();
+    }
     if (msg?.type === 'ping') return Promise.resolve(true);
   });
 
-  browser.runtime.sendMessage({ type: 'get' }).then(apply, () => {});
+  // Every tab follows edits to the global EQ made in the popup.
+  browser.storage.onChanged.addListener((changes, area) => {
+    if (area !== 'local' || !changes.eq) return;
+    globalEq = changes.eq.newValue ?? defaultEq();
+    apply();
+  });
+
+  Promise.all([browser.runtime.sendMessage({ type: 'get' }), browser.storage.local.get('eq')]).then(([s, stored]) => {
+    settings = s ?? defaultTab();
+    globalEq = stored.eq ?? defaultEq();
+    apply();
+  }, () => {});
 })();

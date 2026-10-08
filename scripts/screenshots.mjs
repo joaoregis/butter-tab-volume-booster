@@ -25,25 +25,30 @@ const TABS = [
   { id: 3, windowId: 1, mutedInfo: { muted: true }, title: 'Quarter-final highlights (live)', url: 'https://sports.example.net/live', favIconUrl: favicon('#16a34a', 'S') },
   { id: 4, windowId: 1, title: 'Classical Focus — playlist', url: 'https://music.example.com/focus', favIconUrl: favicon('#0ea5e9', '♪') },
 ];
-const BOOSTED = { 'tab:4': { volume: 150, eq: false, preset: 'flat', bands: Array(10).fill(0) } };
+const ROCK = { enabled: true, preset: 'rock', bands: [5, 4, 2, 0, -1, -1, 1, 3, 4, 5] };
+const OTHER_TABS = {
+  'tab:2': { volume: 100, eq: { enabled: true, preset: 'vocal', bands: [-3, -3, -2, 1, 4, 5, 4, 2, 0, -1] } },
+  'tab:4': { volume: 150 },
+};
 
+// `tab` = settings of the controlled tab (tab 1), `eq` = the global EQ.
 const SHOTS = [
-  { name: 'volume-light', theme: 'light', lang: 'pt', view: 'volume', state: { volume: 250, eq: true, preset: 'rock', bands: [5, 4, 2, 0, -1, -1, 1, 3, 4, 5] } },
-  { name: 'volume-dark', theme: 'dark', lang: 'en', view: 'volume', state: { volume: 450, eq: false, preset: 'flat', bands: Array(10).fill(0) } },
-  { name: 'eq-light', theme: 'light', lang: 'es', view: 'eq', state: { volume: 180, eq: true, preset: 'custom', bands: [6, 5, 3, 1, 0, -2, 0, 2, 4, 3] } },
-  { name: 'eq-dark', theme: 'dark', lang: 'pt', view: 'eq', state: { volume: 250, eq: true, preset: 'rock', bands: [5, 4, 2, 0, -1, -1, 1, 3, 4, 5] } },
-  { name: 'tabs-dark', theme: 'dark', lang: 'pt', view: 'volume', list: true, state: { volume: 250, eq: true, preset: 'rock', bands: [5, 4, 2, 0, -1, -1, 1, 3, 4, 5] } },
+  { name: 'volume-light', theme: 'light', lang: 'pt', view: 'volume', tab: { volume: 250 }, eq: ROCK },
+  { name: 'volume-dark', theme: 'dark', lang: 'en', view: 'volume', tab: { volume: 450 }, eq: { ...ROCK, enabled: false } },
+  { name: 'eq-light', theme: 'light', lang: 'es', view: 'eq', tab: { volume: 180, eq: { enabled: true, preset: 'custom', bands: [6, 5, 3, 1, 0, -2, 0, 2, 4, 3] } }, eq: ROCK },
+  { name: 'eq-dark', theme: 'dark', lang: 'pt', view: 'eq', tab: { volume: 250 }, eq: ROCK },
+  { name: 'tabs-dark', theme: 'dark', lang: 'pt', view: 'volume', list: true, tab: { volume: 250 }, eq: ROCK },
 ];
 
 const mock = (shot) => `
 const LOCALES = ${JSON.stringify(locales)};
 const TABS = ${JSON.stringify(TABS)};
-const STATES = ${JSON.stringify({ ...BOOSTED, 'tab:1': shot.state })};
+const STATES = ${JSON.stringify({ ...OTHER_TABS, 'tab:1': shot.tab })};
 const clone = (x) => JSON.parse(JSON.stringify(x));
 window.browser = {
   i18n: { getMessage: (k) => LOCALES.en[k]?.message ?? '', getUILanguage: () => 'en' },
   storage: {
-    local: { get: async () => ({ prefs: ${JSON.stringify({ theme: shot.theme, lang: shot.lang, view: shot.view })} }), set: async () => {} },
+    local: { get: async () => (${JSON.stringify({ prefs: { theme: shot.theme, lang: shot.lang, view: shot.view }, eq: shot.eq })}), set: async () => {} },
     session: { get: async (k) => clone(k ? { [k]: STATES[k] } : STATES), set: async () => {}, remove: async () => {} },
   },
   tabs: {
@@ -53,6 +58,7 @@ window.browser = {
     onUpdated: { addListener() {} },
   },
   scripting: { executeScript: async () => {} },
+  permissions: { contains: async () => true },
   action: { setBadgeText: async () => {} },
   windows: { update: async () => {} },
 };

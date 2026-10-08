@@ -17,9 +17,10 @@
 
 - **Per-tab boost from 0% to 600%**: gauge, slider, quick presets and mouse wheel, plus a built-in limiter so heavy boosts get louder instead of clipping.
 - **10-band equalizer** (32 Hz to 16 kHz, ±12 dB) with a live frequency-response curve and 10 presets (Bass boost, Vocal, Rock, Electronic…).
+- **Global or per-tab EQ**: the global EQ is saved and applies to every tab. Any tab can switch to its own EQ, which overrides the global one while the tab is open.
 - **Manage every tab with audio** from one popup: see which tabs are playing, boosted or muted, control any of them, or jump to it.
 - **Badge on the toolbar icon** shows each tab's boost.
-- Settings follow the tab across navigations until it's closed.
+- A tab's volume follows it across navigations until it's closed.
 - **PT / EN / ES**: follows the browser language, or pick one manually.
 - **Light, dark and automatic theme.**
 - No data collection, no remote code, no dependencies, no build step.
@@ -35,10 +36,10 @@
 ## Install (from source)
 
 1. Clone this repository.
-2. Open `about:debugging#/runtime/this-firefox` in Firefox (128 or newer).
+2. Open `about:debugging#/runtime/this-firefox` in Firefox (140 or newer).
 3. Click **Load Temporary Add-on…** and pick `manifest.json`.
 
-Or run it in a fresh profile with [web-ext](https://github.com/mozilla/web-ext): `npx web-ext run`.
+Or run it in a fresh profile with [web-ext](https://github.com/mozilla/web-ext): `npx web-ext run`. To build the package for addons.mozilla.org, run `npx web-ext build`; the `.xpi` lands in `web-ext-artifacts/`.
 
 ## How it works
 
@@ -66,7 +67,7 @@ node scripts/screenshots.mjs  # re-render docs/*.png with headless Firefox
 
 ## Português 🇧🇷
 
-Extensão para Firefox que aumenta o volume de **abas específicas** até **600%**, com **equalizador de 10 bandas**, curva de resposta em tempo real, presets, limitador contra distorção e controle de todas as abas com áudio pelo mesmo menu. Interface em português, inglês e espanhol, com tema claro, escuro ou automático. Para instalar, abra `about:debugging#/runtime/this-firefox`, clique em **Carregar extensão temporária…** e selecione o `manifest.json`.
+Extensão para Firefox que aumenta o volume de **abas específicas** até **600%**, com **equalizador de 10 bandas** (global e salvo, ou próprio de cada aba), curva de resposta em tempo real, presets, limitador contra distorção e controle de todas as abas com áudio pelo mesmo menu. Interface em português, inglês e espanhol, com tema claro, escuro ou automático. Para instalar, abra `about:debugging#/runtime/this-firefox`, clique em **Carregar extensão temporária…** e selecione o `manifest.json`.
 
 ## License
 
